@@ -147,12 +147,11 @@
     <div class="actions">
       <button class="btn pri" id="refreshBtn">새로고침</button>
       <button class="btn" id="loadBtn">엑셀 불러오기</button>
-      <button class="btn" id="sampleBtn">샘플 데이터</button>
       <button class="btn" id="printBtn">인쇄 · PDF</button>
       <input type="file" id="file" accept=".xlsx,.xls,.csv" style="display:none">
     </div>
   </div>
-  <div class="banner" id="banner"><span>🔎</span><div><b>샘플 데이터</b>로 미리보기 중입니다. 구글 시트를 엑셀(.xlsx)로 내려받아 <b>엑셀 불러오기</b>를 누르면 실제 응답이 반영됩니다.</div></div>
+  <div class="banner" id="banner"><span>📂</span><div>구글 시트를 엑셀(.xlsx)로 내려받아 <b>엑셀 불러오기</b>를 누르거나, 상단의 <b>WEB_APP_URL</b>을 설정하면 실시간으로 데이터가 반영됩니다.</div></div>
 
   <div class="kpis" id="kpis"></div>
 
@@ -453,7 +452,7 @@ function setStatus(source){
     b.innerHTML='<span>📄</span><div>엑셀 파일에서 불러왔습니다 · 재직 '+state.model.totalRes+' / 퇴직 '+state.model.totalExit+'건</div>';
   } else {
     b.className="banner";
-    b.innerHTML='<span>🔎</span><div><b>샘플 데이터</b>로 미리보기 중입니다. 코드 상단 <b>WEB_APP_URL</b>을 넣으면 시트에서 자동으로 불러옵니다. (또는 <b>엑셀 불러오기</b>)</div>';
+    b.innerHTML='<span>📂</span><div>데이터가 없습니다. 코드 상단 <b>WEB_APP_URL</b>을 설정하거나 <b>엑셀 불러오기</b>로 파일을 가져오세요.</div>';
   }
 }
 function handleFile(file){
@@ -500,50 +499,16 @@ function onLive(resp, silent){
   loadData(data,"live", silent);
 }
 
-/* ===================== 샘플 데이터 ===================== */
-function genSample(){
-  // 병원별 프로필: [평균만족 중심, eNPS 경향, 이직고려 경향, 재직수, 퇴직수]
-  var profiles={
-    "강동성심병원":  {base:4.1, sd:.5, npsBias:.3,  turnBias:.15, nRes:22, nExit:3},
-    "의정부성모병원":{base:3.3, sd:.7, npsBias:-.1, turnBias:.38, nRes:18, nExit:7},
-    "강남하트스캔의원":{base:2.7,sd:.8, npsBias:-.4, turnBias:.55, nRes:9,  nExit:6}
-  };
-  var improve=["급여가 동종 병원보다 낮아요","교대 간격이 너무 촘촘합니다","휴게 공간이 마땅치 않아요","현장 관리자 소통이 아쉽습니다","연차를 자유롭게 쓰기 어려워요","담당자 연락이 잘 안 될 때가 있어요","유니폼·물품 지급이 늦어요"];
-  var retain=["급여를 조금만 올려줬다면 남았을 것 같아요","교대 일정이 예측 가능했다면 계속 다녔을 거예요","정규직 전환 기회가 있었다면요","현장 관리자와의 갈등만 없었다면…"];
-  var reasons=["급여·수당","근무 강도·교대","현장 인간관계","통근 거리","계약 만료","정규직 전환 기회 없음","건강 문제","타 직장 이직","개인 사정"];
-  function rnd(m,sd){ var v=m+(Math.random()+Math.random()+Math.random()-1.5)/1.5*sd; return Math.max(1,Math.min(5,Math.round(v))); }
-  function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
-  var res=[], exit=[];
-  Object.keys(profiles).forEach(function(h){
-    var p=profiles[h];
-    for(var i=0;i<p.nRes;i++){
-      var dims={}; ["pay","payAcc","workload","rest","siteMgr","coSupport","env","grievance","overall"].forEach(function(k){ dims[k]=rnd(p.base, p.sd); });
-      var npsR=Math.random()+p.npsBias; var enps = npsR>.62?pick([9,10]):(npsR>.32?pick([7,8]):pick([0,3,5,6]));
-      var tR=Math.random(); var turn = tR<(.45-p.turnBias)?"전혀 없음":(tR<.78-p.turnBias?"가끔 있음":(tR<.93-p.turnBias*.3?"자주 있음":"늘 생각함"));
-      var rec={type:"res", hospital:h, tenure:pick(["3개월 미만","3~6개월","6개월~1년","1~2년","2년 이상"]), empType:pick(["파견","도급(위탁)"]), dims:dims, enps:enps, turnover:turn, c_improve: Math.random()<.4?pick(improve):"", c_free:""};
-      res.push(rec);
-    }
-    for(var j=0;j<p.nExit;j++){
-      var ed={}; ["pay","workload","siteMgr","coSupport","overall"].forEach(function(k){ ed[k]=rnd(p.base-.4, p.sd); });
-      exit.push({type:"exit", hospital:h, tenure:pick(["3개월 미만","3~6개월","6개월~1년","1~2년"]), empType:pick(["파견","도급(위탁)"]),
-        primaryReason: p.turnBias>.4?pick(["급여·수당","근무 강도·교대","현장 인간관계","급여·수당"]):pick(reasons),
-        factors: [pick(reasons), pick(reasons)], dims:ed, rehire: pick(p.base>3.5?["예","조건부 가능","조건부 가능"]:["조건부 가능","아니오","아니오"]),
-        c_retain: Math.random()<.5?pick(retain):"", c_free:""});
-    }
-  });
-  return {res:res, exit:exit};
-}
 
 /* ===================== 이벤트 / 시작 ===================== */
 $("loadBtn").onclick=function(){ $("file").click(); };
 $("file").onchange=function(e){ if(e.target.files[0]) handleFile(e.target.files[0]); };
-$("sampleBtn").onclick=function(){ loadData(genSample(), "sample"); };
 $("refreshBtn").onclick=function(){ fetchLive(true); };
 $("printBtn").onclick=function(){ window.print(); };
 $("resetScope").onclick=function(){ state.scope="전체"; renderTable(state.model); renderDetail(); };
 
-loadData(genSample(), "sample");                               // 즉시 미리보기
-if(WEB_APP_URL && WEB_APP_URL.indexOf("PASTE_")!==0){ fetchLive(false); }   // 설정돼 있으면 실시간으로 교체
+if(WEB_APP_URL && WEB_APP_URL.indexOf("PASTE_")!==0){ fetchLive(false); }   // 설정돼 있으면 실시간으로 불러옴
+else { loadData({res:[], exit:[]}, "empty"); }                              // 빈 상태로 초기화
 
 /* ===================== 자동 갱신(폴링) ===================== */
 var AUTO_MS = 30000, autoTimer = null;
